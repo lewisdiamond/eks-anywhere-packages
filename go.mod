@@ -8,6 +8,7 @@ require (
 	github.com/itchyny/gojq v0.12.6
 	github.com/onsi/ginkgo v1.16.5
 	github.com/onsi/gomega v1.17.0
+	github.com/pkg/profile v1.6.0
 	github.com/stretchr/testify v1.7.0
 	gotest.tools v2.2.0+incompatible
 	helm.sh/helm/v3 v3.8.1

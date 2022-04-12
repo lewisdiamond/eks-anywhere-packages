@@ -26,8 +26,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
+	"net/http"
+	_ "net/http/pprof"
+
 	api "github.com/aws/eks-anywhere-packages/api/v1alpha1"
 	"github.com/aws/eks-anywhere-packages/controllers"
+	"github.com/pkg/profile"
 )
 
 var (
@@ -43,6 +47,11 @@ func init() {
 }
 
 func main() {
+    defer profile.Start(profile.MemProfileHeap).Stop()
+    go func() {
+		http.ListenAndServe(":1234", nil)
+	}()
+
 	var metricsAddr string
 	var enableLeaderElection bool
 	var probeAddr string
