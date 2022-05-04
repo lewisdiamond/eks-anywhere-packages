@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	sig "github.com/aws/eks-anywhere-packages/pkg/signature"
+	"gopkg.in/yaml.v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -153,7 +155,7 @@ func main() {
 		check, err := IfSignature(bundle)
 		if !check {
 			BundleLog.Info("Adding Signature to bundle and exiting...")
-			bundle, err = AddSignature(bundle, o.signature)
+			bundle.ObjectMeta.Annotations[FullSignatureAnnotation] = o.signature
 		} else {
 			// If annotations do currently exist then compare the current signature vs the input signature
 			BundleLog.Info("Signature already exists on bundle checking it's contents...")
@@ -193,14 +195,26 @@ func main() {
 		// Write list of bundle structs into Bundle CRD files
 		BundleLog.Info("In Progress: Writing output files")
 		bundle := AddMetadata(addOnBundleSpec, name)
-		fmt.Printf("Bundle=%v\n", bundle)
+
+		signature, err := GetBundleSignature(context.Background(), bundle, o.key)
+		//Remove excludes before generating YAML so that registry + repository remains
+		bundle.ObjectMeta.Annotations[FullExcludesAnnotation] = ""
 		_, yml, err := sig.GetDigest(bundle, sig.EksaDomain)
 		if err != nil {
-			BundleLog.Error(err, "Unable to convert Bundle to yaml via sig.GetDigest()")
-			os.Exit(1)
+			fmt.Println("error=", err.Error())
 		}
-		fmt.Printf("err=%v\n", err)
-		fmt.Printf("Yaml=%v\n", yml)
+		manifest := make(map[interface{}]interface{})
+		err = yaml.Unmarshal(yml, &manifest)
+		fmt.Println("yml=", yml)
+		fmt.Println("manifest=", manifest)
+		if err != nil {
+			fmt.Println("error=", err.Error())
+		}
+		anno := manifest["metadata"].(map[interface{}]interface{})["annotations"].(map[interface{}]interface{})
+		anno[FullSignatureAnnotation] = signature
+		anno[FullExcludesAnnotation] = Excludes
+
+		yml, err = yaml.Marshal(manifest)
 		if _, err := outputPath.Write("bundle.yaml", yml, PersistentFile); err != nil {
 			BundleLog.Error(err, "Unable to write Bundle to yaml")
 			os.Exit(1)

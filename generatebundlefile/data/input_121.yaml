@@ -2,17 +2,10 @@
 name: "v1-21-1001"
 kubernetesVersion: "1.21"
 packages:
-  - org: aws-containers
+  - org: aws
     projects:
-      - name: hello-eks-anywhere
-        repository: hello-eks-anywhere
-        registry: public.ecr.aws/l0g8r8j6
-        versions:
-            - name: latest
-  - org: harbor
-    projects:
-      - name: harbor
-        repository: harbor/harbor-helm
-        registry: public.ecr.aws/l0g8r8j6
+      - name: eks-anywhere-packages
+        registry: public.ecr.aws/m8j5b4x2/
+        repository: eks-anywhere-packages
         versions:
             - name: latest
