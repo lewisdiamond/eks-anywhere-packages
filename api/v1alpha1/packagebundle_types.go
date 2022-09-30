@@ -49,6 +49,7 @@ type BundlePackage struct {
 	// +kubebuilder:validation:Required
 	// Source location for the package (probably a helm chart).
 	Source BundlePackageSource `json:"source"`
+
 }
 
 // BundlePackageSource identifies the location of a package.
@@ -81,6 +82,10 @@ type SourceVersion struct {
 
 	// Schema is a base64 encoded, gzipped json schema used to validate package configurations.
 	Schema string `json:"schema,omitempty"`
+
+	// +kubebuilder:validation:Optional
+    // Dependencies to be installed before the package
+    Dependencies []string `json:"dependencies,omitempty"`
 }
 
 // VersionImages is an image used by a version of a package.

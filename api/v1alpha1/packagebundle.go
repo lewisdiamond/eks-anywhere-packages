@@ -26,22 +26,62 @@ func (config *PackageBundle) ExpectedKind() string {
 	return PackageBundleKind
 }
 
-func (config *PackageBundle) FindSource(pkgName, pkgVersion string) (retSource PackageOCISource, err error) {
+func (config *PackageBundle) FindPackage(pkgName string) (retPkg BundlePackage, err error) {
 	for _, pkg := range config.Spec.Packages {
 		if strings.EqualFold(pkg.Name, pkgName) {
-			source := pkg.Source
-			for _, packageVersion := range source.Versions {
-				// We do not sort before getting `latest` because there will be only a single packageVersion per release in normal cases. For edge cases which may require multiple
-				// versions, the order in the file will be ordered according to what we want `latest` to point to
-				if packageVersion.Name == pkgVersion || packageVersion.Digest == pkgVersion || pkgVersion == Latest {
-					retSource = PackageOCISource{Registry: source.Registry, Repository: source.Repository, Digest: packageVersion.Digest, Version: packageVersion.Name}
-					return retSource, nil
-				}
-			}
+            return pkg, nil
 		}
 	}
+	return retPkg, fmt.Errorf("package not found in bundle (%s): %s", config.ObjectMeta.Name, pkgName)
+}
 
-	return retSource, fmt.Errorf("package not found in bundle (%s): %s @ %s", config.ObjectMeta.Name, pkgName, pkgVersion)
+func (config *PackageBundle) GetDependencies(version SourceVersion) (dependencies []BundlePackage, err error) {
+    var ret []BundlePackage
+    for _, dep := range version.Dependencies {
+        pkg, err := config.FindPackage(dep)
+        if err != nil {
+            return nil, err
+        }
+        ret = append(ret, pkg)
+    }
+    return ret, nil
+}
+
+func (config *PackageBundle) FindVersion(pkg BundlePackage, pkgVersion string) (ret SourceVersion, err error) {
+    source := pkg.Source
+    for _, packageVersion := range source.Versions {
+        // We do not sort before getting `latest` because there will be only a single packageVersion per release in normal cases. For edge cases which may require multiple
+        // versions, the order in the file will be ordered according to what we want `latest` to point to
+        if packageVersion.Name == pkgVersion || packageVersion.Digest == pkgVersion || pkgVersion == Latest {
+            fmt.Printf("Found %s, out of %s", packageVersion, source.Versions)
+            return packageVersion, nil
+        }
+    }
+	return ret, fmt.Errorf("package not found in bundle (%s): %s @ %s", config.ObjectMeta.Name, pkg.Name, pkgVersion)
+}
+
+func (config *PackageBundle) FindOCISourceByName(pkgName string, pkgVersion string) (retSource PackageOCISource, err error) {
+    pkg, err := config.FindPackage(pkgName)
+    if err != nil {
+        return retSource, err
+    }
+    return config.FindOCISource(pkg, pkgVersion)
+}
+
+func (config *PackageBundle) FindOCISource(pkg BundlePackage, pkgVersion string) (retSource PackageOCISource, err error) {
+    source := pkg.Source
+    fmt.Printf("Finding %s@%s", pkg, pkgVersion)
+    packageVersion, err := config.FindVersion(pkg, pkgVersion)
+    fmt.Println(packageVersion)
+    if err != nil {
+        return retSource, err
+    }
+    return PackageOCISource{Registry: source.Registry, Repository: source.Repository, Digest: packageVersion.Digest, Version: packageVersion.Name}, nil
+}
+
+func (config *PackageBundle) GetOCISource(pkg BundlePackage, packageVersion SourceVersion) (retSource PackageOCISource) {
+    source := pkg.Source
+    return PackageOCISource{Registry: source.Registry, Repository: source.Repository, Digest: packageVersion.Digest, Version: packageVersion.Name}
 }
 
 // LessThan evaluates if the left calling bundle is less than the supplied parameter

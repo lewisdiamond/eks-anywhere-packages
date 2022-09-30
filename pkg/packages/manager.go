@@ -35,6 +35,7 @@ type ManagerContext struct {
 	Version       string
 	RequeueAfter  time.Duration
 	Log           logr.Logger
+    Dependencies  []api.BundlePackage
 }
 
 func (mc *ManagerContext) SetUninstalling(namespace string, name string) {

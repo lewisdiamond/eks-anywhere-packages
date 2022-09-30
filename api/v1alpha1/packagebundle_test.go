@@ -10,6 +10,7 @@ import (
 
 func TestPackageBundle_Find(t *testing.T) {
 	var err error
+    packageName := "hello-eks-anywhere"
 	givenBundle := func(versions []SourceVersion) PackageBundle {
 		return PackageBundle{
 			Spec: PackageBundleSpec{
@@ -42,18 +43,25 @@ func TestPackageBundle_Find(t *testing.T) {
 		Version:    "0.1.0",
 	}
 
-	actual, err := sut.FindSource("hello-eks-anywhere", "0.1.0")
+    pkg, err := sut.FindPackage(packageName)
+	assert.NoError(t, err)
+
+	actual, err := sut.FindOCISource(pkg, "0.1.0")
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 
-	actual, err = sut.FindSource("hello-eks-anywhere", "sha256:eaa07ae1c06ffb563fe3c16cdb317f7ac31c8f829d5f1f32442f0e5ab982c3e7")
+	actual, err = sut.FindOCISource(pkg, "sha256:eaa07ae1c06ffb563fe3c16cdb317f7ac31c8f829d5f1f32442f0e5ab982c3e7")
 	assert.NoError(t, err)
 	assert.Equal(t, expected, actual)
 
-	expectedErr := "package not found in bundle (fake bundle): Bogus @ bar"
+	expectedPkgNotFoundErr := "package not found in bundle (fake bundle): Bogus"
 	sut.ObjectMeta.Name = "fake bundle"
-	_, err = sut.FindSource("Bogus", "bar")
-	assert.EqualError(t, err, expectedErr)
+	_, err = sut.FindPackage("Bogus")
+	assert.EqualError(t, err, expectedPkgNotFoundErr)
+
+	expectedPkgVersionNotFoundErr := "package not found in bundle (fake bundle): Bogus"
+	_, err = sut.FindOCISourceByName("Bogus", "9.9.9")
+	assert.EqualError(t, err, expectedPkgVersionNotFoundErr)
 
 	t.Run("Get latest version returns the first item", func(t *testing.T) {
 		latest := givenBundle(
@@ -74,7 +82,7 @@ func TestPackageBundle_Find(t *testing.T) {
 			Digest:     "sha256:deadbeef",
 			Version:    "0.1.1",
 		}
-		actual, err = latest.FindSource("hello-eks-anywhere", Latest)
+		actual, err = latest.FindOCISourceByName("hello-eks-anywhere", Latest)
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)
 	})
@@ -98,7 +106,7 @@ func TestPackageBundle_Find(t *testing.T) {
 			Digest:     "sha256:eaa07ae1c06ffb563fe3c16cdb317f7ac31c8f829d5f1f32442f0e5ab982c3e7",
 			Version:    "0.1.0",
 		}
-		actual, err = latest.FindSource("hello-eks-anywhere", Latest)
+		actual, err = latest.FindOCISource(pkg, Latest)
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)
 	})

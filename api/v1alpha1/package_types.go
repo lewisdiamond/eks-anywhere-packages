@@ -58,6 +58,7 @@ type StateEnum string
 const (
 	StateInitializing StateEnum = "initializing"
 	StateInstalling   StateEnum = "installing"
+	StateInstallingDependencies   StateEnum = "installing dependencies"
 	StateInstalled    StateEnum = "installed"
 	StateUpdating     StateEnum = "updating"
 	StateUninstalling StateEnum = "uninstalling"

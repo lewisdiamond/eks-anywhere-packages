@@ -206,8 +206,16 @@ func (r *PackageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			targetVersion = api.Latest
 		}
 		pkgName := managerContext.Package.Spec.PackageName
-		managerContext.Source, err = bundle.FindSource(pkgName, targetVersion)
-		managerContext.Package.Status.TargetVersion = printableTargetVersion(managerContext.Source, targetVersion)
+        pkg, err := bundle.FindPackage(pkgName)
+		if err != nil {
+			managerContext.Package.Status.Detail = fmt.Sprintf("Package %s is not in the active bundle (%s).", pkgName, bundle.ObjectMeta.Name)
+			r.Log.Info(managerContext.Package.Status.Detail)
+			if err = r.Status().Update(ctx, &managerContext.Package); err != nil {
+				return ctrl.Result{RequeueAfter: managerContext.RequeueAfter}, err
+			}
+			return ctrl.Result{RequeueAfter: retryLong}, err
+		}
+        version, err := bundle.FindVersion(pkg, targetVersion)
 		if err != nil {
 			managerContext.Package.Status.Detail = fmt.Sprintf("Package %s@%s is not in the active bundle (%s).", pkgName, targetVersion, bundle.ObjectMeta.Name)
 			r.Log.Info(managerContext.Package.Status.Detail)
@@ -216,7 +224,28 @@ func (r *PackageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 			}
 			return ctrl.Result{RequeueAfter: retryLong}, err
 		}
+		managerContext.Source = bundle.GetOCISource(pkg, version)
+		managerContext.Package.Status.TargetVersion = printableTargetVersion(managerContext.Source, targetVersion)
+        managerContext.Dependencies, err = bundle.GetDependencies(version)
+		if err != nil {
+            managerContext.Package.Status.Detail = fmt.Sprintf("Internal error: invalid package bundle. Please reach out to support. (%s@%s bundle: %s)", pkgName, targetVersion, bundle.ObjectMeta.Name)
+			r.Log.Info(managerContext.Package.Status.Detail)
+			if err = r.Status().Update(ctx, &managerContext.Package); err != nil {
+				return ctrl.Result{RequeueAfter: managerContext.RequeueAfter}, err
+			}
+			return ctrl.Result{RequeueAfter: retryLong}, err
+		}
+
+        if len(managerContext.Dependencies) > 0 {
+            for _, dep := range managerContext.Dependencies {
+                pkg := api.NewPackage(dep.Name, dep.Name, managerContext.Package.Namespace) 
+                r.Client.Create(ctx, &pkg)
+            }
+
+        }
+
 	}
+
 
 	updateNeeded := r.Manager.Process(managerContext)
 	if updateNeeded {

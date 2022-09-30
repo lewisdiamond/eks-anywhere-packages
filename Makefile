@@ -5,7 +5,7 @@ SHELL = /usr/bin/env bash -o pipefail
 .SHELLFLAGS = -ec
 
 # Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+IMG ?= public.ecr.aws/m8j5b4x2/controller:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,preserveUnknownFields=false"
 
